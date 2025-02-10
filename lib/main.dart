@@ -22,101 +22,174 @@ class DrawingApp extends StatefulWidget {
   _DrawingAppState createState() => _DrawingAppState();
 }
 
-enum Shape { line, circle, square, arc }
+enum Shape {
+  line,
+  circle,
+  square,
+  arc,
+  smileEmoji,
+  heartEmoji,
+  starEmoji,
+  sunEmoji,
+  partyEmoji,
+  winkEmoji
+}
 
 class _DrawingAppState extends State<DrawingApp> {
   List<Map<String, dynamic>> drawings = [];
   Shape selectedShape = Shape.line;
+  bool showEmojiPanel = false;
+  bool showShapePanel = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Drawing App')),
-      body: GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            RenderBox renderBox = context.findRenderObject() as RenderBox;
-            final localPosition =
-                renderBox.globalToLocal(details.globalPosition);
+      body: Row(
+        children: [
+          // **Drawing Area**
+          Expanded(
+            child: GestureDetector(
+              onPanUpdate: (details) {
+                setState(() {
+                  RenderBox renderBox = context.findRenderObject() as RenderBox;
+                  final localPosition =
+                      renderBox.globalToLocal(details.globalPosition);
 
-            if (drawings.isEmpty || drawings.last["points"] == null) {
-              drawings.add({
-                "shape": selectedShape,
-                "points": [localPosition]
-              });
-            } else {
-              drawings.last["points"].add(localPosition);
-            }
-          });
-        },
-        onPanEnd: (_) {
+                  if (drawings.isEmpty || drawings.last["points"] == null) {
+                    drawings.add({
+                      "shape": selectedShape,
+                      "points": [localPosition]
+                    });
+                  } else {
+                    drawings.last["points"].add(localPosition);
+                  }
+                });
+              },
+              onPanEnd: (_) {
+                setState(() {
+                  drawings.add({"shape": selectedShape, "points": null});
+                });
+              },
+              child: CustomPaint(
+                painter: MyPainter(drawings),
+                size: Size.infinite,
+              ),
+            ),
+          ),
+
+          // **Right Side Panel for Emojis & Shapes**
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildHoverIcon(Icons.emoji_emotions, "Emojis", () {
+                setState(() {
+                  showEmojiPanel = !showEmojiPanel;
+                  showShapePanel = false;
+                });
+              }),
+              SizedBox(height: 20),
+              _buildHoverIcon(Icons.category, "Shapes", () {
+                setState(() {
+                  showShapePanel = !showShapePanel;
+                  showEmojiPanel = false;
+                });
+              }),
+            ],
+          ),
+
+          // **Emoji Selection Panel**
+          if (showEmojiPanel) _buildEmojiPanel(),
+
+          // **Shape Selection Panel**
+          if (showShapePanel) _buildShapePanel(),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
           setState(() {
-            drawings.add({"shape": selectedShape, "points": null});
+            drawings.clear();
           });
         },
-        child: CustomPaint(
-          painter: MyPainter(drawings),
-          size: Size.infinite,
+        label: Text("Clear"),
+        icon: Icon(Icons.clear),
+      ),
+    );
+  }
+
+  // **Hoverable Button for Icons**
+  Widget _buildHoverIcon(IconData icon, String label, VoidCallback onTap) {
+    return MouseRegion(
+      onEnter: (_) => setState(() {}),
+      onExit: (_) => setState(() {}),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          children: [
+            Icon(icon, size: 40, color: Colors.blue),
+            Text(label, style: TextStyle(fontSize: 14)),
+          ],
         ),
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
+    );
+  }
+
+  // **Emoji Selection Panel**
+  Widget _buildEmojiPanel() {
+    return Container(
+      width: 80,
+      color: Colors.white,
+      child: Column(
         children: [
-          FloatingActionButton.extended(
-            onPressed: () {
-              setState(() {
-                drawings.clear();
-              });
-            },
-            label: Text("Clear"),
-            icon: Icon(Icons.clear),
-          ),
-          SizedBox(height: 10),
-          FloatingActionButton.extended(
-            onPressed: () {
-              _showShapeSelectionDialog(context);
-            },
-            label: Text("Select Shape"),
-            icon: Icon(Icons.category),
-          ),
+          _buildEmojiOption(Shape.smileEmoji, "😊"),
+          _buildEmojiOption(Shape.heartEmoji, "❤️"),
+          _buildEmojiOption(Shape.starEmoji, "⭐"),
+          _buildEmojiOption(Shape.sunEmoji, "🌞"),
+          _buildEmojiOption(Shape.partyEmoji, "🎉"),
+          _buildEmojiOption(Shape.winkEmoji, "😉"),
         ],
       ),
     );
   }
 
-  void _showShapeSelectionDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Choose Shape"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildShapeOption(Shape.line, "Line"),
-              _buildShapeOption(Shape.circle, "Circle"),
-              _buildShapeOption(Shape.square, "Square"),
-              _buildShapeOption(Shape.arc, "Arc"),
-            ],
-          ),
-        );
+  // **Shape Selection Panel**
+  Widget _buildShapePanel() {
+    return Container(
+      width: 80,
+      color: Colors.white,
+      child: Column(
+        children: [
+          _buildShapeOption(Shape.circle, "🟡"),
+          _buildShapeOption(Shape.square, "⬛"),
+          _buildShapeOption(Shape.arc, "⤴️"),
+        ],
+      ),
+    );
+  }
+
+  // **Emoji Option**
+  Widget _buildEmojiOption(Shape shape, String emoji) {
+    return ListTile(
+      title: Text(emoji, style: TextStyle(fontSize: 30)),
+      onTap: () {
+        setState(() {
+          selectedShape = shape;
+          showEmojiPanel = false;
+        });
       },
     );
   }
 
-  Widget _buildShapeOption(Shape shape, String name) {
+  // **Shape Option**
+  Widget _buildShapeOption(Shape shape, String shapeIcon) {
     return ListTile(
-      title: Text(name),
-      leading: Radio(
-        value: shape,
-        groupValue: selectedShape,
-        onChanged: (Shape? value) {
-          setState(() {
-            selectedShape = value!;
-          });
-          Navigator.pop(context);
-        },
-      ),
+      title: Text(shapeIcon, style: TextStyle(fontSize: 30)),
+      onTap: () {
+        setState(() {
+          selectedShape = shape;
+          showShapePanel = false;
+        });
+      },
     );
   }
 }
@@ -155,8 +228,32 @@ class MyPainter extends CustomPainter {
           var rect = Rect.fromCenter(center: points[0], width: 60, height: 60);
           canvas.drawArc(rect, 0, 3.14, false, paint);
           break;
+        case Shape.smileEmoji:
+          _drawSmileEmoji(canvas, points[0]);
+          break;
+        case Shape.heartEmoji:
+          _drawHeartEmoji(canvas, points[0]);
+          break;
+        case Shape.starEmoji:
+          _drawStarEmoji(canvas, points[0]);
+          break;
       }
     }
+  }
+
+  void _drawSmileEmoji(Canvas canvas, Offset center) {
+    Paint paint = Paint()..color = Colors.yellow;
+    canvas.drawCircle(center, 50, paint);
+  }
+
+  void _drawHeartEmoji(Canvas canvas, Offset center) {
+    Paint paint = Paint()..color = Colors.red;
+    canvas.drawCircle(center, 40, paint);
+  }
+
+  void _drawStarEmoji(Canvas canvas, Offset center) {
+    Paint paint = Paint()..color = Colors.amber;
+    canvas.drawCircle(center, 35, paint);
   }
 
   @override
