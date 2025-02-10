@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 
 void main() {
   runApp(MyApp());
@@ -22,174 +21,136 @@ class DrawingApp extends StatefulWidget {
   _DrawingAppState createState() => _DrawingAppState();
 }
 
-enum Shape {
-  line,
-  circle,
-  square,
-  arc,
-  smileEmoji,
-  heartEmoji,
-  starEmoji,
-  sunEmoji,
-  partyEmoji,
-  winkEmoji
-}
+enum Shape { freehand, circle, square, arc, emoji }
+
+enum EmojiType { smile, party, heart }
 
 class _DrawingAppState extends State<DrawingApp> {
   List<Map<String, dynamic>> drawings = [];
-  Shape selectedShape = Shape.line;
-  bool showEmojiPanel = false;
-  bool showShapePanel = false;
+  Shape selectedShape = Shape.freehand;
+  EmojiType? selectedEmoji;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Drawing App')),
-      body: Row(
-        children: [
-          // **Drawing Area**
-          Expanded(
-            child: GestureDetector(
-              onPanUpdate: (details) {
-                setState(() {
-                  RenderBox renderBox = context.findRenderObject() as RenderBox;
-                  final localPosition =
-                      renderBox.globalToLocal(details.globalPosition);
-
-                  if (drawings.isEmpty || drawings.last["points"] == null) {
-                    drawings.add({
-                      "shape": selectedShape,
-                      "points": [localPosition]
-                    });
-                  } else {
-                    drawings.last["points"].add(localPosition);
-                  }
-                });
-              },
-              onPanEnd: (_) {
-                setState(() {
-                  drawings.add({"shape": selectedShape, "points": null});
-                });
-              },
-              child: CustomPaint(
-                painter: MyPainter(drawings),
-                size: Size.infinite,
-              ),
-            ),
-          ),
-
-          // **Right Side Panel for Emojis & Shapes**
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildHoverIcon(Icons.emoji_emotions, "Emojis", () {
-                setState(() {
-                  showEmojiPanel = !showEmojiPanel;
-                  showShapePanel = false;
-                });
-              }),
-              SizedBox(height: 20),
-              _buildHoverIcon(Icons.category, "Shapes", () {
-                setState(() {
-                  showShapePanel = !showShapePanel;
-                  showEmojiPanel = false;
-                });
-              }),
-            ],
-          ),
-
-          // **Emoji Selection Panel**
-          if (showEmojiPanel) _buildEmojiPanel(),
-
-          // **Shape Selection Panel**
-          if (showShapePanel) _buildShapePanel(),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
+      body: GestureDetector(
+        onPanUpdate: (details) {
           setState(() {
-            drawings.clear();
+            RenderBox renderBox = context.findRenderObject() as RenderBox;
+            final localPosition =
+                renderBox.globalToLocal(details.globalPosition);
+
+            if (selectedShape == Shape.freehand) {
+              if (drawings.isEmpty || drawings.last["points"] == null) {
+                drawings.add({
+                  "shape": selectedShape,
+                  "points": [localPosition]
+                });
+              } else {
+                drawings.last["points"].add(localPosition);
+              }
+            } else if (selectedShape == Shape.emoji && selectedEmoji != null) {
+              drawings.add({
+                "shape": selectedShape,
+                "position": localPosition,
+                "emoji": selectedEmoji
+              });
+            } else {
+              drawings.add({"shape": selectedShape, "position": localPosition});
+            }
           });
         },
-        label: Text("Clear"),
-        icon: Icon(Icons.clear),
+        child: CustomPaint(
+          painter: MyPainter(drawings),
+          size: Size.infinite,
+        ),
       ),
-    );
-  }
-
-  // **Hoverable Button for Icons**
-  Widget _buildHoverIcon(IconData icon, String label, VoidCallback onTap) {
-    return MouseRegion(
-      onEnter: (_) => setState(() {}),
-      onExit: (_) => setState(() {}),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Column(
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: "clear",
+            backgroundColor: Colors.red,
+            onPressed: () {
+              setState(() {
+                drawings.clear();
+              });
+            },
+            child: Icon(Icons.clear),
+          ),
+          SizedBox(height: 15),
+          FloatingActionButton(
+            heroTag: "emoji",
+            backgroundColor: Colors.purple,
+            onPressed: () {
+              _showEmojiSelection();
+            },
+            child: Icon(Icons.emoji_emotions),
+          ),
+        ],
+      ),
+      bottomNavigationBar: BottomAppBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            Icon(icon, size: 40, color: Colors.blue),
-            Text(label, style: TextStyle(fontSize: 14)),
+            _buildShapeButton("✏ Freehand", Shape.freehand),
+            _buildShapeButton("⭕ Circle", Shape.circle),
+            _buildShapeButton("⬛ Square", Shape.square),
+            _buildShapeButton("🔄 Arc", Shape.arc),
+            _buildShapeButton("😀 Emoji", Shape.emoji),
           ],
         ),
       ),
     );
   }
 
-  // **Emoji Selection Panel**
-  Widget _buildEmojiPanel() {
-    return Container(
-      width: 80,
-      color: Colors.white,
-      child: Column(
-        children: [
-          _buildEmojiOption(Shape.smileEmoji, "😊"),
-          _buildEmojiOption(Shape.heartEmoji, "❤️"),
-          _buildEmojiOption(Shape.starEmoji, "⭐"),
-          _buildEmojiOption(Shape.sunEmoji, "🌞"),
-          _buildEmojiOption(Shape.partyEmoji, "🎉"),
-          _buildEmojiOption(Shape.winkEmoji, "😉"),
-        ],
-      ),
-    );
-  }
-
-  // **Shape Selection Panel**
-  Widget _buildShapePanel() {
-    return Container(
-      width: 80,
-      color: Colors.white,
-      child: Column(
-        children: [
-          _buildShapeOption(Shape.circle, "🟡"),
-          _buildShapeOption(Shape.square, "⬛"),
-          _buildShapeOption(Shape.arc, "⤴️"),
-        ],
-      ),
-    );
-  }
-
-  // **Emoji Option**
-  Widget _buildEmojiOption(Shape shape, String emoji) {
-    return ListTile(
-      title: Text(emoji, style: TextStyle(fontSize: 30)),
-      onTap: () {
+  Widget _buildShapeButton(String text, Shape shape) {
+    return ElevatedButton(
+      onPressed: () {
         setState(() {
           selectedShape = shape;
-          showEmojiPanel = false;
         });
+      },
+      child: Text(text),
+    );
+  }
+
+  void _showEmojiSelection() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          height: 120,
+          child: Column(
+            children: [
+              Text("Select an Emoji",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _emojiButton("😊", EmojiType.smile),
+                  _emojiButton("🥳", EmojiType.party),
+                  _emojiButton("❤️", EmojiType.heart),
+                ],
+              ),
+            ],
+          ),
+        );
       },
     );
   }
 
-  // **Shape Option**
-  Widget _buildShapeOption(Shape shape, String shapeIcon) {
-    return ListTile(
-      title: Text(shapeIcon, style: TextStyle(fontSize: 30)),
+  Widget _emojiButton(String emoji, EmojiType emojiType) {
+    return GestureDetector(
       onTap: () {
         setState(() {
-          selectedShape = shape;
-          showShapePanel = false;
+          selectedEmoji = emojiType;
+          selectedShape = Shape.emoji;
         });
+        Navigator.pop(context);
       },
+      child: Text(emoji, style: TextStyle(fontSize: 40)),
     );
   }
 }
@@ -202,58 +163,56 @@ class MyPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     Paint paint = Paint()
       ..color = Colors.blue
-      ..strokeCap = StrokeCap.round
       ..strokeWidth = 5.0;
 
     for (var drawing in drawings) {
       var shape = drawing["shape"];
       var points = drawing["points"] as List<Offset>?;
-
-      if (points == null || points.isEmpty) continue;
+      var position = drawing["position"] as Offset?;
+      var emoji = drawing["emoji"] as EmojiType?;
 
       switch (shape) {
-        case Shape.line:
-          for (int i = 0; i < points.length - 1; i++) {
-            canvas.drawLine(points[i], points[i + 1], paint);
+        case Shape.freehand:
+          if (points != null) {
+            for (int i = 0; i < points.length - 1; i++) {
+              canvas.drawLine(points[i], points[i + 1], paint);
+            }
           }
           break;
         case Shape.circle:
-          canvas.drawCircle(points[0], 30, paint);
+          if (position != null) {
+            canvas.drawCircle(position, 30, paint);
+          }
           break;
         case Shape.square:
-          canvas.drawRect(
-              Rect.fromCenter(center: points[0], width: 50, height: 50), paint);
+          if (position != null) {
+            canvas.drawRect(
+                Rect.fromCenter(center: position, width: 50, height: 50),
+                paint);
+          }
           break;
         case Shape.arc:
-          var rect = Rect.fromCenter(center: points[0], width: 60, height: 60);
-          canvas.drawArc(rect, 0, 3.14, false, paint);
+          if (position != null) {
+            var rect = Rect.fromCenter(center: position, width: 60, height: 60);
+            canvas.drawArc(rect, 0, 3.14, false, paint);
+          }
           break;
-        case Shape.smileEmoji:
-          _drawSmileEmoji(canvas, points[0]);
-          break;
-        case Shape.heartEmoji:
-          _drawHeartEmoji(canvas, points[0]);
-          break;
-        case Shape.starEmoji:
-          _drawStarEmoji(canvas, points[0]);
+        case Shape.emoji:
+          if (position != null && emoji != null) {
+            String emojiText = "😀";
+            if (emoji == EmojiType.smile) emojiText = "😊";
+            if (emoji == EmojiType.party) emojiText = "🥳";
+            if (emoji == EmojiType.heart) emojiText = "❤️";
+            TextPainter textPainter = TextPainter(
+              text: TextSpan(text: emojiText, style: TextStyle(fontSize: 40)),
+              textDirection: TextDirection.ltr,
+            );
+            textPainter.layout();
+            textPainter.paint(canvas, position);
+          }
           break;
       }
     }
-  }
-
-  void _drawSmileEmoji(Canvas canvas, Offset center) {
-    Paint paint = Paint()..color = Colors.yellow;
-    canvas.drawCircle(center, 50, paint);
-  }
-
-  void _drawHeartEmoji(Canvas canvas, Offset center) {
-    Paint paint = Paint()..color = Colors.red;
-    canvas.drawCircle(center, 40, paint);
-  }
-
-  void _drawStarEmoji(Canvas canvas, Offset center) {
-    Paint paint = Paint()..color = Colors.amber;
-    canvas.drawCircle(center, 35, paint);
   }
 
   @override
